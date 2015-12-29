@@ -12,7 +12,7 @@ from kivy.core.audio import SoundLoader
 from kivy.uix.image import Image
 from kivy.uix.boxlayout import BoxLayout
 from functools import partial
-
+from kivy_logger import LogAction
 
 class Item(Scatter):
     source = StringProperty(None)
@@ -22,6 +22,8 @@ class Item(Scatter):
     is_playing = False
 
     def on_transform_with_touch(self, touch):
+        if LogAction.press.value == 1:
+            pass
         if self.collide_point(*touch.pos):
             self.play()
 
