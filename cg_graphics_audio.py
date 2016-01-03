@@ -12,9 +12,10 @@ from kivy.core.audio import SoundLoader
 from kivy.uix.image import Image
 from kivy.uix.boxlayout import BoxLayout
 from functools import partial
-from kivy_logger import LogAction
+from kivy_logger import *
 
-class Item(Scatter):
+
+class Item(WidgetLogger, Scatter):
     source = StringProperty(None)
     audio = []
     text = []
@@ -35,9 +36,11 @@ class Item(Scatter):
                 self.audio[self.current].play()
 
     def on_play(self):
+        super(Item, self).on_play(self.audio[self.current].source)
         self.is_playing = True
 
     def on_stop(self):
+        super(Item, self).on_stop(self.audio[self.current].source)
         self.is_playing = False
         self.current += 1
         CuriosityGame.current += 1
@@ -61,6 +64,8 @@ class CuriosityGame:
 
     def __init__(self, parent_app):
         self.the_app = parent_app
+        KL.start([DataMode.file, DataMode.communication])
+
         items_path = 'items/'
         only_files = [f for f in listdir(items_path) if isfile(join(items_path, f))]
         self.items = {}
@@ -71,6 +76,7 @@ class CuriosityGame:
                 ext = filename[-3:]
                 if name not in self.items.keys():
                     self.items[name] = Item(do_rotation=False, do_scale=False)
+                    self.items[name].name = name
                     self.items[name].text = []
                     self.items[name].audio = []
 
@@ -91,6 +97,8 @@ class CuriosityGame:
                 # load the image
                 if ext in ['jpg', 'png', 'gif']:
                     self.items[name].source = items_path + filename
+                    self.items[name].pos = (100*len(self.items), 50*len(self.items))
+
 
             except Exception as e:
                 Logger.exception('Curiosity: Unable to load <%s>' % filename)
