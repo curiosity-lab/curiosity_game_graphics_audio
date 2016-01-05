@@ -97,9 +97,9 @@ class KivyLogger:
             prv_pem = private_key.private_bytes(encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption())
-            KivyLogger.file = open('encrypt/' + KivyLogger.filename + '.enc', 'w')
-            KivyLogger.file.write(prv_pem + '\n')
-            KivyLogger.file.close()
+            store = JsonStore('encrypt/' + KivyLogger.filename + '.enc')
+            store.put('private_key', pem=prv_pem)
+
             pem = private_key.public_key().public_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo)
@@ -136,10 +136,10 @@ class KivyLogger:
 
     @staticmethod
     def save(data_str, modes=[DataMode.file]):
-        KivyLogger.file = open('data/' + KivyLogger.filename, 'a')
-        KivyLogger.file.write(data_str + '\n')
-        KivyLogger.file.close()
-        pass
+        if DataMode.file in modes:
+            store = JsonStore('data/' + KivyLogger.filename)
+            store.put(datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f'),
+                      data=data_str)
 
     @staticmethod
     def to_str(log):

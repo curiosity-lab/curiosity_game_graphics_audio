@@ -13,42 +13,52 @@ from kivy.uix.image import Image
 from kivy.uix.boxlayout import BoxLayout
 from functools import partial
 from kivy_logger import *
+from kivy.storage.jsonstore import JsonStore
 
 
 class Item(WidgetLogger, Scatter):
-    source = StringProperty(None)
-    audio = []
-    text = []
+    source = StringProperty()
+    img = {}
+    info = {}
     current = 0
     is_playing = False
 
+    def change_img(self, im = '1'):
+        if im in self.img:
+            self.source = self.img[im]
+
     def on_transform_with_touch(self, touch):
-        if LogAction.press.value == 1:
-            pass
+        #if LogAction.press.value == 1:
+        #    pass
         if self.collide_point(*touch.pos):
             self.play()
 
     def play(self):
+        #self.change_img('2')
+
         # if still has something to play
-        if len(self.audio) > self.current:
-            # if not playing
-            if not self.is_playing:
-                self.audio[self.current].play()
+        if len(self.info) > self.current:
+            if 'audio' in self.info[self.current]:
+                # if not playing
+                if not self.is_playing:
+                    self.info[self.current]['audio'].play()
 
     def on_play(self):
-        super(Item, self).on_play(self.audio[self.current].source)
+        super(Item, self).on_play(self.info[self.current]['audio'].source)
         self.is_playing = True
+        #self.change_img('2')
 
     def on_stop(self):
-        super(Item, self).on_stop(self.audio[self.current].source)
+        super(Item, self).on_stop(self.info[self.current]['audio'].source)
         self.is_playing = False
         self.current += 1
         CuriosityGame.current += 1
+        #self.change_img('1')
 
     def get_text(self):
         # if still has text
-        if len(self.text) > self.current:
-            return self.text[self.current][::-1]
+        if len(self.info) > self.current:
+            return self.info[self.current]['text'][::-1]
         return None
 
 
@@ -64,7 +74,7 @@ class CuriosityGame:
 
     def __init__(self, parent_app):
         self.the_app = parent_app
-        KL.start([DataMode.file, DataMode.communication])
+        KL.start([DataMode.file])
 
         items_path = 'items/'
         only_files = [f for f in listdir(items_path) if isfile(join(items_path, f))]
@@ -72,36 +82,52 @@ class CuriosityGame:
         for filename in only_files:
             try:
                 full_name = filename[:-4]
-                name = str.split(full_name, '_')[0]
+                name_spl = str.split(full_name, '_')
+                name = name_spl[0]
                 ext = filename[-3:]
                 if name not in self.items.keys():
                     self.items[name] = Item(do_rotation=False, do_scale=False)
                     self.items[name].name = name
-                    self.items[name].text = []
-                    self.items[name].audio = []
+                    self.items[name].info = {}
+                    self.items[name].img = {}
 
                 # load the text
                 if ext == "txt":
-                    f = open(items_path + filename, 'r', encoding='utf-8')
-                    self.items[name].text.append(f.read())
-                    f.close()
+                    f = JsonStore(items_path + filename)
+                    num = int(name_spl[1])
+                    if num in self.items[name].info:
+                        self.items[name].info[num]['text'] = \
+                            f.get('info')['text']
+                    else:
+                        self.items[name].info[num] =\
+                            {"text": f.get('info')['text']}
 
                 # load the sounds
                 if ext == "wav":
-                    self.items[name].audio.append(SoundLoader.load(items_path + filename))
-                    self.items[name].audio[-1].bind(
+                    num = int(name_spl[1])
+                    if num in self.items[name].info:
+                        self.items[name].info[num]['audio'] = \
+                            SoundLoader.load(items_path + filename)
+                    else:
+                        self.items[name].info[num] =\
+                            {"audio": SoundLoader.load(items_path + filename)}
+                    self.items[name].info[num]['audio'].bind(
                         on_play=partial(self.on_play, name))
-                    self.items[name].audio[-1].bind(
+                    self.items[name].info[num]['audio'].bind(
                         on_stop=partial(self.on_stop, name))
 
                 # load the image
                 if ext in ['jpg', 'png', 'gif']:
-                    self.items[name].source = items_path + filename
+                    if len(name_spl) > 1:
+                        self.items[name].img[name_spl[1]] = items_path + filename
+                    else:
+                        self.items[name].img['1'] = items_path + filename
+                    self.items[name].change_img('1')
                     self.items[name].pos = (100*len(self.items), 50*len(self.items))
-
 
             except Exception as e:
                 Logger.exception('Curiosity: Unable to load <%s>' % filename)
+
 
     def on_play(self, name, par):
         self.items[name].on_play()
